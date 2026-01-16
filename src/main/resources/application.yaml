@@ -3,7 +3,7 @@ port: 8080
 
 
 file:
- upload-dir: D:/filetransfer/filetransfer/fileuploads
+ upload-dir: ./fileuploads
  expiry-minutes: 10
 
 
