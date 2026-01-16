@@ -1,0 +1,19 @@
+server:
+port: 8080
+
+
+file:
+ upload-dir: D:/filetransfer/filetransfer/fileuploads
+ expiry-minutes: 10
+
+
+jwt:
+ secret: ThisIsVeryStrongSecretKeyForBankSystemJWTAuth2026
+ expiry-ms: 3600000
+
+
+spring:
+ servlet:
+  multipart:
+   max-file-size: 80MB
+   max-request-size: 80MB
