@@ -14,13 +14,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
+import jakarta.annotation.PostConstruct;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -34,16 +32,26 @@ public class FileStorageService {
     @Value("${file.upload-dir}")
     private String uploadDir;
 
+    /**
+     * Ensure upload directory exists on startup
+     */
+    @PostConstruct
+    public void init() {
+        getUploadPath();
+        log.info("Upload directory ready at: {}", Paths.get(uploadDir).toAbsolutePath());
+    }
+
+    /**
+     * Always ensure directory exists (creates if missing)
+     */
     private Path getUploadPath() {
-        Path path = Paths.get(uploadDir);
-
-        if (!Files.exists(path) || !Files.isDirectory(path)) {
-            throw new FileStorageException(
-                    "Upload directory does not exist: " + path.toAbsolutePath()
-            );
+        try {
+            Path path = Paths.get(uploadDir).toAbsolutePath().normalize();
+            Files.createDirectories(path); // ✅ creates folder if not exists
+            return path;
+        } catch (IOException e) {
+            throw new FileStorageException("Could not create upload directory: " + uploadDir, e);
         }
-
-        return path;
     }
 
     public void save(MultipartFile file) {
@@ -63,11 +71,9 @@ public class FileStorageService {
         }
     }
 
-
     public List<FileMetadataDto> list() {
 
         try {
-
             return Files.list(getUploadPath())
                     .filter(Files::isRegularFile)
                     .map(path -> {
@@ -85,6 +91,7 @@ public class FileStorageService {
                                     0,
                                     expirySeconds - ((nowMillis - createdMillis) / 1000)
                             );
+
                             double sizeMB = Math.round(
                                     (attrs.size() / (1024.0 * 1024.0)) * 100.0
                             ) / 100.0;
@@ -95,7 +102,12 @@ public class FileStorageService {
                                             .atZone(ZoneId.systemDefault())
                                             .toLocalDateTime();
 
-                            return new FileMetadataDto(fileName, sizeMB, uploadedAt,remainingSeconds);
+                            return new FileMetadataDto(
+                                    fileName,
+                                    sizeMB,
+                                    uploadedAt,
+                                    remainingSeconds
+                            );
 
                         } catch (IOException e) {
                             return null;
@@ -108,7 +120,6 @@ public class FileStorageService {
             throw new FileStorageException("Failed to list files", e);
         }
     }
-
 
     public Resource load(String filename) {
         try {
@@ -188,7 +199,4 @@ public class FileStorageService {
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .body(stream);
     }
-
 }
-
-
